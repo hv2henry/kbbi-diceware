@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Diceware KBBI</title>
+<meta name="description" content="Client-side Indonesian passphrase generator built on the KBBI diceware word list (7,776 words, 5 dice per word). CSPRNG only, no server, no analytics.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2220%22%20fill%3D%22%23fff%22%2F%3E%3Ccircle%20cx%3D%2228%22%20cy%3D%2228%22%20r%3D%229%22%20fill%3D%22%23111%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2228%22%20r%3D%229%22%20fill%3D%22%23111%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%229%22%20fill%3D%22%23111%22%2F%3E%3Ccircle%20cx%3D%2228%22%20cy%3D%2272%22%20r%3D%229%22%20fill%3D%22%23111%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2272%22%20r%3D%229%22%20fill%3D%22%23111%22%2F%3E%3C%2Fsvg%3E">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main>
+  <noscript>
+    <div class="card">
+      <p><b>JavaScript diperlukan.</b> Halaman ini membuat frasa sandi sepenuhnya di browser
+      Anda, jadi tanpa JavaScript tidak ada yang dapat dihitung. Daftar katanya sendiri adalah
+      berkas teks biasa yang dapat dipakai langsung dengan dadu fisik:
+      <a href="../kbbi-wordlist.txt">kbbi-wordlist.txt</a> (7.776 kata) dan
+      <a href="../kbbi-diceware-wordlist.txt">kbbi-diceware-wordlist.txt</a> (dengan kode dadu).</p>
+      <p><b>JavaScript required.</b> This page generates passphrases entirely in your browser,
+      so without JavaScript nothing can be computed. The word list itself is a plain text file
+      you can use directly with physical dice:
+      <a href="../kbbi-wordlist.txt">kbbi-wordlist.txt</a> (7,776 words) and
+      <a href="../kbbi-diceware-wordlist.txt">kbbi-diceware-wordlist.txt</a> (with dice codes).</p>
+    </div>
+  </noscript>
+
+  <nav class="navbar" data-i18n-aria="navbarLabel">
+    <div class="seg" id="theme-group" role="group" data-i18n-aria="themeLabel"></div>
+    <div class="seg" id="lang-group" role="group" data-i18n-aria="language"></div>
+    <button type="button" class="ghost" id="emudhra-toggle" data-i18n="emudhraToggle" aria-pressed="false"></button>
+  </nav>
+
+  <header class="top">
+    <div class="brand">
+      <div>
+        <h1 data-i18n="title"></h1>
+        <p class="tagline" id="tagline" data-i18n="tagline"></p>
+      </div>
+    </div>
+  </header>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="card" id="emudhra-card" aria-labelledby="h-emudhra">
+    <h2 id="h-emudhra" data-i18n="emudhraHeading"></h2>
+    <p class="hint" data-i18n="emudhraContext"></p>
+    <pre class="xkcd"><code data-i18n="emudhraSnippet"></code></pre>
+    <p class="credit" data-i18n="emudhraCredit"></p>
+  </section>
+
+  <section class="card" aria-labelledby="h-gen">
+    <h2 id="h-gen" data-i18n="generateHeading"></h2>
+    <div class="field">
+      <label class="label" id="lbl-count" for="count-slider" data-i18n="wordCount"></label>
+      <input type="range" class="slider" id="count-slider" min="4" max="12" step="1" value="5">
+      <output class="count-value" id="count-value" for="count-slider"></output>
+    </div>
+    <div class="field">
+      <span class="label" id="lbl-sep" data-i18n="separator"></span>
+      <div class="seg" id="sep-group" role="group" aria-labelledby="lbl-sep"></div>
+      <input type="text" class="sep-custom" id="sep-custom" maxlength="3" size="3"
+             autocomplete="off" spellcheck="false"
+             data-i18n-aria="sepCustomAria">
+    </div>
+    <button type="button" class="primary" id="generate" data-i18n="generate" disabled></button>
+  </section>
+
+  <section class="card" aria-labelledby="h-result">
+    <h2 id="h-result" data-i18n="passphraseLabel"></h2>
+    <div class="passphrase-row">
+      <output class="passphrase" id="passphrase" aria-live="polite"></output>
+      <button type="button" class="ghost" id="copy" data-i18n="copy" disabled></button>
+    </div>
+    <p class="entropy" id="entropy"></p>
+    <div class="legend" aria-hidden="true">
+      <span data-i18n="colDice"></span><span data-i18n="colCode"></span><span data-i18n="colWord"></span>
+    </div>
+    <ul class="rolls" id="rolls"></ul>
+  </section>
+
+  <section class="card" aria-labelledby="h-manual">
+    <h2 id="h-manual" data-i18n="manualTitle"></h2>
+    <p class="hint" id="manual-hint" data-i18n="manualHint"></p>
+    <div class="manual-dice" id="manual-dice" role="group" data-i18n-aria="manualDiceGroup"></div>
+    <p class="manual-out">
+      <label for="manual-code-input" data-i18n="manualCode"></label>:
+      <input id="manual-code-input" class="code-input" type="text" inputmode="numeric"
+             maxlength="5" autocomplete="off" spellcheck="false">
+      · <span data-i18n="manualWord"></span>: <span class="word" id="manual-word">—</span>
+      <br><span class="line" id="manual-line"></span>
+    </p>
+  </section>
+
+  <footer>
+    <p data-i18n="privacy"></p>
+    <p id="rng-line" data-i18n="rng"></p>
+    <p data-i18n="source"></p>
+    <p>
+      <a href="../README.md">README</a> ·
+      <a href="../kbbi-wordlist.txt">kbbi-wordlist.txt</a> ·
+      <a href="../kbbi-diceware-wordlist.txt">kbbi-diceware-wordlist.txt</a>
+    </p>
+  </footer>
+</main>
+<script src="./app.js"></script>
+</body>
+</html>

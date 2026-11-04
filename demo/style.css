@@ -1,0 +1,261 @@
+/* demo/style.css — Diceware KBBI.
+ *
+ * Theming via CSS custom properties with three triggers:
+ *   - system preference  (prefers-color-scheme)
+ *   - explicit choice    (<html data-theme="light|dark">, set by the navbar toggle)
+ * The dark palette keeps #9B2B1A as THE brick identity: all fills (primary
+ * button, pressed chips, toggles) stay brand brick with warm-white text.
+ * Because red *text* cannot reach 4.5:1 on near-black, links go light and
+ * underlined (--link) and thin strokes (focus ring, die borders, slider) get
+ * a brighter brick ≥3:1 (--ring) — meaning is never carried by hue alone,
+ * which also keeps the page colour-blind friendly.
+ *   - eMudhra Mode       (body.emudhra overrides everything — satire theme)
+ *
+ * Dice geometry is integer pixels end to end so every pip renders identical
+ * and perfectly round; the arithmetic is documented at the .die rule.
+ */
+
+:root {
+  --bg: #FAFAF8;
+  --card: #ffffff;
+  --ink: #1a1917;
+  --muted: #6a675f;
+  --line: #e0ded6;
+  --row: #f4f2ec;
+  --accent: #9B2B1A;
+  --accent-ink: #FAFAF8;
+  --ok: #1c7a3d;
+  --warn: #9a3412;
+  --link: #9B2B1A;
+  --ring: #9B2B1A;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #16110F;
+  --card: #1F1815;
+  --ink: #F3EDE4;
+  --muted: #C9BCAE;
+  --line: #3B2F28;
+  --row: #2A211C;
+  --accent: #9B2B1A;
+  --accent-ink: #FAFAF8;
+  --ok: #6fd08c;
+  --warn: #f0a27a;
+  --link: #F3EDE4;
+  --ring: #C1402A;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16110F;
+    --card: #1F1815;
+    --ink: #F3EDE4;
+    --muted: #C9BCAE;
+    --line: #3B2F28;
+    --row: #2A211C;
+    --accent: #9B2B1A;
+    --accent-ink: #FAFAF8;
+    --ok: #6fd08c;
+    --warn: #f0a27a;
+    --link: #F3EDE4;
+    --ring: #C1402A;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 1.25rem 1rem 3rem;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 46rem; margin: 0 auto; }
+
+/* ---------- navbar (theme · language · eMudhra) ---------- */
+.navbar {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  align-items: center; justify-content: flex-end;
+  margin-bottom: 1.1rem;
+}
+.navbar .seg button { font-size: .82rem; padding: .4rem .6rem; min-height: 2.1rem; }
+.navbar button.ghost { font-size: .82rem; min-height: 2.1rem; display: inline-flex; align-items: center; }
+.navbar .flag { border-radius: 2px; overflow: hidden; flex-shrink: 0; display: block; }
+.navbar .icon-sun, .navbar .icon-moon { display: block; flex-shrink: 0; }
+
+header.top { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-start; margin-bottom: 1rem; }
+.brand { display: flex; gap: .7rem; align-items: flex-start; min-width: 0; }
+h1 { font-size: 1.3rem; margin: 0 0 .15rem; letter-spacing: -.01em; }
+.tagline { margin: 0; color: var(--muted); font-size: .9rem; max-width: 34rem; }
+h2 { font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 .6rem; font-weight: 650; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 1rem; margin-bottom: .9rem;
+}
+noscript .card { border-color: var(--warn); }
+.status { font-size: .88rem; color: var(--muted); margin: 0 0 .9rem; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--warn); }
+.status code { background: var(--row); padding: .1em .35em; border-radius: 4px; }
+
+.field { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .7rem; }
+.field:last-of-type { margin-bottom: 1rem; }
+.label { font-size: .85rem; color: var(--muted); min-width: 7.5rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; flex-wrap: wrap; }
+.seg button {
+  appearance: none; border: 0; background: transparent; color: var(--ink);
+  padding: .4rem .7rem; font: inherit; font-size: .88rem; cursor: pointer;
+  border-right: 1px solid var(--line);
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg button:focus-visible, button:focus-visible, a:focus-visible,
+input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+button.primary {
+  appearance: none; border: 0; background: var(--accent); color: var(--accent-ink);
+  font: inherit; font-size: 1rem; font-weight: 650; padding: .65rem 1.1rem;
+  border-radius: 10px; cursor: pointer; width: 100%;
+}
+button.primary:disabled { opacity: .5; cursor: not-allowed; }
+button.ghost {
+  appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink);
+  font: inherit; font-size: .85rem; padding: .35rem .7rem; border-radius: 8px; cursor: pointer; white-space: nowrap;
+}
+#emudhra-toggle[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+
+/* ---------- controls: slider + separators ---------- */
+.slider { flex: 1 1 10rem; max-width: 18rem; accent-color: var(--ring); }
+.count-value { font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4.5rem; }
+.sep-custom {
+  width: 5.5ch; padding: .4rem .35rem; text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem;
+  background: var(--card); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+
+.passphrase-row { display: flex; gap: .6rem; align-items: flex-start; }
+.passphrase {
+  flex: 1 1 auto; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 1.12rem; font-weight: 600; background: var(--row); border: 1px solid var(--line);
+  border-radius: 10px; padding: .7rem .8rem; word-break: break-word; user-select: all; -webkit-user-select: all;
+}
+.passphrase:empty::before { content: "—"; color: var(--muted); }
+.entropy { margin: .6rem 0 0; font-size: .88rem; color: var(--muted); }
+.entropy b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Dice | code | word columns share one grid definition so the legend and
+   the rows stay aligned; the legend borrows the row padding. */
+.legend, .rolls li { grid-template-columns: 9.25rem 4.5rem 1fr; gap: .6rem; }
+.legend { display: grid; align-items: center; margin: .9rem 0 .3rem; padding: 0 .6rem; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.rolls { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.rolls li { display: grid; align-items: center; background: var(--row); border-radius: 9px; padding: .45rem .6rem; }
+.rolls .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); letter-spacing: .08em; font-size: .9rem; }
+.rolls .word { font-weight: 650; }
+.dice { display: flex; gap: 4px; }
+
+/* Integer-pixel die geometry: every die is a 3×3 grid whose cell size comes
+   out whole, so all pips render identical and perfectly round.
+   small: 25 - 2(border) - 6(padding) = 17 = 3×5 + 2×1(gap)  -> 5px cells
+   large: 46 - 2(border) - 12(padding) = 32 = 3×10 + 2×1(gap) -> 10px cells */
+.die {
+  display: inline-grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  width: 25px; height: 25px; padding: 3px; gap: 1px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+}
+.die i { display: block; }
+.die i.pip { background: var(--ink); border-radius: 50%; }
+button.die { cursor: pointer; width: 46px; height: 46px; padding: 6px; border-color: var(--ring); }
+button.die:hover { background: var(--row); }
+
+.manual-dice { display: flex; gap: .5rem; flex-wrap: wrap; margin: .2rem 0 .8rem; }
+.manual-out { margin: 0; font-size: .95rem; }
+.code-input {
+  width: 7ch; padding: .15em .4em; text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95rem; letter-spacing: .08em;
+  background: var(--row); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 5px;
+}
+.code-input::placeholder { color: var(--muted); opacity: 1; }
+.code-input:disabled { opacity: .55; cursor: not-allowed; }
+.manual-out .word { font-weight: 700; font-size: 1.05rem; }
+.manual-out .line { color: var(--muted); font-size: .85rem; }
+.hint { margin: 0 0 .7rem; color: var(--muted); font-size: .88rem; }
+
+/* ---------- eMudhra mode (satire; see xkcd #221) ---------- */
+#emudhra-card { display: none; border-color: #3a2620; }
+#emudhra-card .xkcd {
+  margin: .2rem 0 .7rem; padding: .7rem .8rem; overflow-x: auto;
+  background: #000000; border: 1px solid #2b201b; border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .82rem; line-height: 1.5; color: #7ee787;
+}
+#emudhra-card .credit { margin: 0; color: var(--muted); font-size: .78rem; }
+
+body.emudhra {
+  --bg: #050504;
+  --card: #0c0a09;
+  --ink: #e7e1d8;
+  --muted: #948b80;
+  --line: #2b201b;
+  --row: #15100d;
+  --accent: #c42b10;
+  --accent-ink: #fff2ec;
+  --ok: #79c46b;
+  --warn: #e4572e;
+  --link: #e1694f;
+  --ring: #e13b1b;
+  color-scheme: dark;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+body.emudhra::after {
+  content: ""; position: fixed; inset: 0; z-index: 9; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
+}
+body.emudhra #emudhra-card { display: block; }
+/* eMudhra forces black regardless of data-theme — a toggle that would do
+   nothing is worse than no toggle, so it disappears for the takeover. */
+body.emudhra #theme-group { display: none; }
+body.emudhra h1 {
+  color: #e13b1b; text-transform: uppercase; letter-spacing: .14em;
+  text-shadow: 0 0 14px rgba(225, 59, 27, .5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  body.emudhra h1 { animation: emudhra-flicker 5s infinite; }
+}
+@keyframes emudhra-flicker {
+  0%, 91%, 95%, 100% { opacity: 1; }
+  92%, 94% { opacity: .55; }
+  93% { opacity: .8; }
+}
+body.emudhra .card { border-color: #3a2620; box-shadow: 0 0 24px rgba(150, 20, 10, .1); }
+body.emudhra .passphrase { color: #ff6a4d; background: #120c0c; text-shadow: 0 0 10px rgba(255, 80, 40, .35); }
+body.emudhra button.die[aria-disabled="true"] { cursor: not-allowed; opacity: .5; border-color: #5a1f10; }
+body.emudhra .code-input:disabled { border-color: #5a1f10; }
+
+footer { color: var(--muted); font-size: .82rem; margin-top: 1.2rem; }
+footer p { margin: 0 0 .45rem; }
+footer a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+footer code { background: var(--row); padding: .1em .35em; border-radius: 4px; }
+
+@media (max-width: 30rem) {
+  .label { min-width: 100%; }
+  /* Navbar: one centered row of natural-width toggle groups. Only on the
+     narrowest phones (~320px) eMudhra wraps to a second centered line.
+     Deliberately not a hamburger: these are three frequently used utility
+     toggles, not navigation links — hiding them costs a tap and discoverability. */
+  .navbar { justify-content: center; }
+  #emudhra-toggle { width: auto; }
+  /* mobile: 23 - 2 - 4 = 17 -> 5px cells; 40 - 2 - 12 = 26 -> 8px cells */
+  .die { width: 23px; height: 23px; padding: 2px; }
+  button.die { width: 40px; height: 40px; }
+  .legend, .rolls li { grid-template-columns: 8.5rem 3.5rem 1fr; gap: .5rem; }
+  .passphrase-row { flex-direction: column; }
+  button.ghost { width: 100%; }
+}
