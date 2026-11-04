@@ -9,7 +9,7 @@ currently live in `demo/`.
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 ![Core list: 7776 words](https://img.shields.io/badge/core-7%2C776%20words-blue)
 
-**Try it:** the repo ships a fully client-side passphrase generator in [`demo/`](demo).
+**Try it:** the repo ships a fully client-side passphrase generator in ([demo](https://hv2henry.github.io/kbbi-diceware/demo/)).
 A *Check Your Dice Roll* panel looks up real physical dice without generating anything.
 
 ---
