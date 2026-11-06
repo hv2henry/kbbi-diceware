@@ -57,6 +57,7 @@ const I18N = {
     copied: 'Tersalin ✓',
     copyFailed: 'Gagal menyalin—blok teksnya lalu salin manual.',
     entropy: 'Entropi <b>{bits} bit</b> ({per} bit per kata)—{verdict}',
+    entropyEmudhra: 'Entropi <b>384 bit</b>—ukuran penuh kunci P-384, persis seperti kunci yang ditenagai angka 4. Jumlah kata tidak memengaruhinya; hasilnya selalu sama.',
     verdictMin: 'batas minimum yang umum dipakai',
     verdictDefault: 'nyaman untuk akun sehari-hari',
     verdictHigh: 'untuk akun penting/jangka panjang',
@@ -81,6 +82,7 @@ const I18N = {
     statusErrorFetch: 'berkas tidak ditemukan atau fetch diblokir',
     statusHint: 'Sajikan lewat GitHub Pages, atau jalankan <code>python3 -m http.server</code> di root repo lalu buka <code>http://localhost:8000/demo/</code>. Membuka berkas lewat <code>file://</code> membuat browser memblokir fetch.',
     statusNoCrypto: 'Browser ini tidak menyediakan crypto.getRandomValues()—pembuatan frasa sandi dinonaktifkan. Panel dadu tetap dapat dipakai.',
+    statusRngBroken: 'RNG browser tidak menghasilkan byte yang dapat dipakai—pembuatan frasa sandi dihentikan (tanpa fallback). Muat ulang halaman atau coba browser lain.',
     privacy: 'Tanpa server, tanpa analitik, tanpa cookie, tanpa penyimpanan lokal. Tidak ada permintaan ke pihak ketiga—hanya berkas dari repo ini.',
     rng: 'Keacakan: crypto.getRandomValues() + rejection sampling (252 = 6 × 42), tanpa modulo bias.',
     rngEmudhra: 'Keacakan: return 4;—dipilih oleh kocokan dadu yang jujur, dijamin acak. Tahan brute-force: kandidatnya cuma satu dan tidak pernah salah.',
@@ -115,6 +117,7 @@ const I18N = {
     copied: 'Copied ✓',
     copyFailed: 'Copy failed—select the text and copy it manually.',
     entropy: 'Entropy <b>{bits} bits</b> ({per} bits per word)—{verdict}',
+    entropyEmudhra: 'Entropy <b>384 bits</b>—the full P-384 size, exactly like the key powered by the number 4. Word count does not affect it; the result is always the same.',
     verdictMin: 'the commonly accepted minimum',
     verdictDefault: 'comfortable for everyday accounts',
     verdictHigh: 'for high-value/long-term accounts',
@@ -139,6 +142,7 @@ const I18N = {
     statusErrorFetch: 'file not found or the fetch was blocked',
     statusHint: 'Serve it from GitHub Pages, or run <code>python3 -m http.server</code> at the repo root and open <code>http://localhost:8000/demo/</code>. Opening the file via <code>file://</code> makes the browser block the fetch.',
     statusNoCrypto: 'This browser does not expose crypto.getRandomValues()—passphrase generation is disabled. The dice panel still works.',
+    statusRngBroken: 'The browser RNG is not producing usable bytes—passphrase generation has stopped (no fallback). Reload the page or try another browser.',
     privacy: 'No server, no analytics, no cookies, no local storage. No third-party requests—only the files of this repository.',
     rng: 'Randomness: crypto.getRandomValues() + rejection sampling (252 = 6 × 42), no modulo bias.',
     rngEmudhra: 'Randomness: return 4;—chosen by fair dice roll, guaranteed to be random. Brute-force resistant: there is exactly one candidate, and it is never wrong.',
@@ -227,12 +231,12 @@ const codeFromDice = (dice) => dice.join('');
 
 /* ---------- CSPRNG die roller ---------- */
 
-function makeRoller() {
-  if (state.emudhra) {
-    // eMudhra Mode: chosen by fair dice roll, guaranteed to be random (xkcd #221).
-    return function rollDie() { return 4; };
-  }
-  if (!state.hasCrypto) return null;
+/* The crypto roller is built once and cached for the page's lifetime, so the
+ * 256-byte buffer is consumed to the end before a refill instead of being
+ * discarded after every generate() call. */
+let cryptoRoller = null;
+
+function buildCryptoRoller() {
   let buffer = new Uint8Array(0);
   let pos = 0;
   const LIMIT = SIDES * 42; // 252: only bytes below it are used -> no modulo bias
@@ -248,6 +252,16 @@ function makeRoller() {
     }
     throw new Error('crypto.getRandomValues() is not producing usable output');
   };
+}
+
+function makeRoller() {
+  if (state.emudhra) {
+    // eMudhra Mode: chosen by fair dice roll, guaranteed to be random (xkcd #221).
+    return function rollDie() { return 4; };
+  }
+  if (!state.hasCrypto) return null;
+  if (!cryptoRoller) cryptoRoller = buildCryptoRoller();
+  return cryptoRoller;
 }
 
 /* ---------- dice faces ---------- */
@@ -467,12 +481,18 @@ function render() {
 
   $('#passphrase').textContent = state.rolls.map((r) => r.word).join(state.separator);
 
-  const perWord = Math.log2(EXPECTED_WORDS);
-  const verdict = state.count <= MIN_WORDS ? t('verdictMin')
-    : state.count <= DEFAULT_WORDS ? t('verdictDefault') : t('verdictHigh');
-  $('#entropy').innerHTML = t('entropy', {
-    bits: num(state.count * perWord, 1), per: num(perWord, 2), verdict: verdict
-  });
+  if (state.emudhra) {
+    // Satire consistency: the mode that brags about "return 4" also brags
+    // about the full P-384 size, regardless of the word count.
+    $('#entropy').innerHTML = t('entropyEmudhra');
+  } else {
+    const perWord = Math.log2(EXPECTED_WORDS);
+    const verdict = state.count <= MIN_WORDS ? t('verdictMin')
+      : state.count <= DEFAULT_WORDS ? t('verdictDefault') : t('verdictHigh');
+    $('#entropy').innerHTML = t('entropy', {
+      bits: num(state.count * perWord, 1), per: num(perWord, 2), verdict: verdict
+    });
+  }
 
   const rolls = $('#rolls');
   while (rolls.firstChild) rolls.removeChild(rolls.firstChild);
@@ -525,18 +545,36 @@ function renderManual() {
 
 /* ---------- actions ---------- */
 
+function setReadyStatus() {
+  // Shared by loadWordList and every successful generate(), so an RNG error
+  // status never sticks: the ready line always returns after a good roll.
+  setStatus('ok', 'statusReady', {
+    total: state.words.length, // formatted at paint time so the locale can change
+    first: codeFromDice(diceFromIndex(0)),
+    last: codeFromDice(diceFromIndex(state.words.length - 1))
+  });
+}
+
 function generate() {
   if (!state.words) return;
   const rollDie = makeRoller();
   if (!rollDie) return;
   const rolls = [];
-  for (let w = 0; w < state.count; w++) {
-    const dice = [];
-    for (let d = 0; d < DICE_PER_WORD; d++) dice.push(rollDie());
-    const index = indexFromDice(dice);
-    rolls.push({ dice: dice, code: codeFromDice(dice), word: state.words[index] });
+  try {
+    for (let w = 0; w < state.count; w++) {
+      const dice = [];
+      for (let d = 0; d < DICE_PER_WORD; d++) dice.push(rollDie());
+      const index = indexFromDice(dice);
+      rolls.push({ dice: dice, code: codeFromDice(dice), word: state.words[index] });
+    }
+    state.rolls = rolls;
+    setReadyStatus(); // clears a previous statusRngBroken, if any
+  } catch (err) {
+    // The guard tripped: the CSPRNG is not producing usable bytes. Fail
+    // closed — keep the previous rolls, say so in the status line, and
+    // never fall back to a weaker source.
+    setStatus('err', 'statusRngBroken');
   }
-  state.rolls = rolls;
 }
 
 async function copyPassphrase() {
@@ -595,11 +633,7 @@ async function loadWordList() {
     render();
     return;
   }
-  setStatus('ok', 'statusReady', {
-    total: words.length, // formatted at paint time so the locale can change
-    first: codeFromDice(diceFromIndex(0)),
-    last: codeFromDice(diceFromIndex(words.length - 1))
-  });
+  setReadyStatus();
   generate();
   render();
 }
